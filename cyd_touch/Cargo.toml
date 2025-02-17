@@ -1,0 +1,10 @@
+[package]
+name = "cyd_touch"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+embedded-graphics = "0.8.1"
+embedded-hal = "1.0.0"
+libm = "0.2"
+esp-println = { version = "0.13.0", features = ["esp32", "log"] }
