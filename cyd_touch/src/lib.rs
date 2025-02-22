@@ -2,7 +2,11 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 extern crate alloc;
 use alloc::{boxed::Box, sync::Arc};
-use libm::roundf;
+use embassy_sync::{
+    blocking_mutex::raw::RawMutex,
+    signal::Signal,
+    watch::{Receiver, Watch},
+};
 use embedded_graphics::{
     mono_font::{ascii::FONT_9X18, MonoTextStyle},
     pixelcolor::Rgb565,
@@ -10,6 +14,7 @@ use embedded_graphics::{
     primitives::{Circle, PrimitiveStyle},
     text::Text,
 };
+use libm::roundf;
 
 use embedded_graphics::Drawable;
 
@@ -18,7 +23,7 @@ use embedded_hal::{delay::DelayNs, spi::SpiDevice};
 use embedded_hal::spi::ErrorKind;
 use esp_println::println;
 
-pub struct TouchSensor<T: SpiDevice, > {
+pub struct TouchSensor<T: SpiDevice> {
     touch_spi: T,
     touch_pressed: Arc<AtomicBool>,
     pub callback: Box<dyn FnOnce()>,
@@ -28,14 +33,9 @@ pub struct TouchSensor<T: SpiDevice, > {
 // the user would need to provide a function that accepts a notehr funciton and also the atomic bool
 // this would defeat the purpose of the abstraction
 
-impl<T: SpiDevice,> TouchSensor< T> {
-    pub fn new(
-        spi_device: T, // maybe change to a generic spi device later
+impl<T: SpiDevice> TouchSensor<T> {
+    pub fn new(spi_device: T, // maybe change to a generic spi device later
     ) -> TouchSensor<T> {
-
-
-        
-
         let touch_pressed = Arc::new(AtomicBool::new(false));
         let touch_pressed_clone1 = Arc::clone(&touch_pressed);
 
@@ -100,15 +100,15 @@ impl<T: SpiDevice,> TouchSensor< T> {
 
         println!("going to measure again");
 
-        let num_samples = 1;
-        let mut x_samples = [0i16; 1];
-        let mut y_samples = [0i16; 1];
+        const num_samples: usize = 1; // tune this value to get a better average
+        let mut x_samples = [0i16; num_samples];
+        let mut y_samples = [0i16; num_samples];
         let mut x_sum: i16 = 0;
         let mut y_sum: i16 = 0;
-        for _ in 0..num_samples {
+        for i in 0..num_samples {
             let (x, y) = self.read_raw_point()?;
-            x_samples[num_samples as usize] = x;
-            y_samples[num_samples as usize] = y;
+            x_samples[i as usize] = x;
+            y_samples[i as usize] = y;
             x_sum += x;
             y_sum += y;
         }
@@ -118,22 +118,8 @@ impl<T: SpiDevice,> TouchSensor< T> {
         println!("Y average: {}", y_sum / num_samples as i16);
         Ok(())
     }
-/*
-    fn reenable_interrupt(&mut self) {
-        self.irq_touch.enable_interrupt().unwrap();
-    }*/
 
-    pub fn is_touched(&mut self) -> bool {
-        if self.touch_pressed.swap(false, Ordering::Acquire) {
-            //self.reenable_interrupt(); TODO!
-
-            return true;
-        } else {
-            return false;
-        }
-    }
-    //TODO! use the wait trait of the embedded hal async
-
+    /* TODO! one day make this work with the light sleep mode and nostd
     pub fn sleep_until_touch(&mut self) -> bool{
         unsafe {
             // Enter light sleep mode (CPU halts until an interrupt occurs) until the user touches the screen
@@ -141,6 +127,7 @@ impl<T: SpiDevice,> TouchSensor< T> {
         }
         self.is_touched()
     }
+    */
 }
 
 pub struct TouchCalibration {
@@ -162,23 +149,27 @@ impl TouchCalibration {
         }
     }
 
-    pub fn apply(&self, (ix, iy): (i32, i32)) -> (i32, i32) {
+    pub fn apply(&self, (ix, iy): (i16, i16)) -> Point {
         let x = (ix as f32 + self.delta_x) * self.alpha_x;
         let y = (iy as f32 + self.delta_y) * self.alpha_y;
-        return (x as i32, y as i32);
+        return Point::new(x as i32, y as i32);
     }
 
-    pub fn calibrate<D, T: SpiDevice, Dl: DelayNs,>(
+    pub async fn calibrate<D, T, Dl, M, A, const N: usize>(
         &mut self,
         display: &mut D,
         touchscreen: &mut TouchSensor<T>,
         thisdelay: &mut Dl,
+        signal: &mut Receiver<'_, M, A, N>,
     ) -> Result<(), <D as DrawTarget>::Error>
     where
         D: DrawTarget<Color = Rgb565> + embedded_graphics::geometry::OriginDimensions,
+        T: SpiDevice,
+        Dl: DelayNs,
+        M: RawMutex,
+        A: Clone,
     {
-        display
-            .clear(Rgb565::BLACK)?;
+        display.clear(Rgb565::BLACK)?;
 
         // Calibrate logic here, for example, drawing calibration points on the display
         let style = MonoTextStyle::new(&FONT_9X18, Rgb565::WHITE);
@@ -190,11 +181,9 @@ impl TouchCalibration {
         .draw(display)?;
 
         // Draw a single calibration point
-        let x = roundf((display.size().width as f32 / 1.1)) as i32;
+        let x = roundf(display.size().width as f32 / 1.1) as i32;
         let y = roundf(display.size().height as f32 / 1.1) as i32;
-        let point_a = Point::new(
-            x,y
-        );
+        let point_a = Point::new(x, y);
 
         Circle::new(point_a, 3)
             .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
@@ -205,15 +194,14 @@ impl TouchCalibration {
         but i will need also to reenable the interrrupt after it is triggered everytime
          */
         println!("Waiting for touch...");
-        touchscreen.sleep_until_touch();
-        
+        signal.changed().await;
+
         // wait for touch
 
         //first I need to setup the interrupt or somthign to wait for the touch
         let m_a = touchscreen.read_raw_point().expect("spi error"); //TODO! handle this error better
         println!("First Touch at ({}, {})", m_a.0, m_a.1);
-        display
-            .clear(Rgb565::BLACK)?;
+        display.clear(Rgb565::BLACK)?;
 
         // Calibrate logic here, for example, drawing calibration points on the display
         let style = MonoTextStyle::new(&FONT_9X18, Rgb565::WHITE);
@@ -235,8 +223,8 @@ impl TouchCalibration {
             .into_styled(PrimitiveStyle::with_fill(Rgb565::YELLOW))
             .draw(display)?;
 
-        println!("Waiting for touch...");
-        touchscreen.sleep_until_touch();
+        println!("Waiting for second touch...");
+        signal.changed().await;
 
         let m_b = touchscreen.read_raw_point().expect("spi error"); //TODO! handle this error better
         println!("Second Touch at ({}, {})", m_b.0, m_b.1);
@@ -261,8 +249,7 @@ impl TouchCalibration {
         println!("Alpha Y: {}", self.alpha_y);
         println!("Calibration done");
 
-        display
-            .clear(Rgb565::BLACK)?;
+        display.clear(Rgb565::BLACK)?;
 
         // Create a new text style for the success message
         let success_style = MonoTextStyle::new(&FONT_9X18, Rgb565::GREEN);
@@ -274,11 +261,9 @@ impl TouchCalibration {
         );
 
         // Display a message saying the calibration was successful
-        Text::new("Calibration successful!", center, success_style)
-            .draw(display)?;
+        Text::new("Calibration successful!", center, success_style).draw(display)?;
         thisdelay.delay_ms(2000);
-        display
-            .clear(Rgb565::BLACK)?;
+        display.clear(Rgb565::BLACK)?;
         Ok(())
     }
 }

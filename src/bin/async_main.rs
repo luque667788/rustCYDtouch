@@ -2,18 +2,27 @@
 #![no_main]
 
 use embassy_executor::Spawner;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::channel;
+use embassy_sync::pubsub::PubSubChannel;
+use embassy_sync::watch::Watch;
 use embassy_time::{Delay, Duration, Timer};
 use embedded_hal::digital::OutputPin;
 use esp_backtrace as _;
 
-use esp_hal::{clock::CpuClock, peripheral::Peripheral, time::RateExtU32, touch};
+use esp_hal::interrupt::InterruptConfigurable;
+use esp_hal::{clock::CpuClock, gpio::Input, handler, peripheral::Peripheral, time::RateExtU32, touch};
 use esp_hal_embassy::main;
 use log::info;
+use static_cell::StaticCell;
 
+use core::borrow::Borrow;
 use core::cell::RefCell;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
 use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::blocking_mutex::Mutex;
+use embassy_sync::channel::Channel;
+use embassy_sync::channel::TrySendError;
 
 use embedded_graphics::{
     mono_font::{ascii::FONT_9X18, MonoTextStyle},
@@ -25,9 +34,23 @@ use embedded_graphics::{
 
 use cyd_touch::{TouchCalibration, TouchSensor};
 
-use static_cell::StaticCell;
 static SPI_BUFFER: StaticCell<[u8; 1024]> = StaticCell::new(); // Adjust size as needed
 extern crate alloc;
+const NUM_SUBSCRIBERS: usize = 4;
+// Define a static array of channels
+use embassy_sync::signal::Signal;
+
+
+
+static SIGNAL: Watch<CriticalSectionRawMutex, bool, 4> = Watch::new();
+
+static TOUCHINTERRUPT: critical_section::Mutex<RefCell<Option<Input>>> = critical_section::Mutex::new(RefCell::new(None));
+
+
+
+
+
+
 
 /// Initializes an ILI9341 display with RGB565 color format using SPI communication.
 ///
@@ -62,21 +85,26 @@ where
     DC: esp_hal::gpio::OutputPin,
     BL: esp_hal::gpio::OutputPin,
 {
+    let mut cs2;
+    unsafe {cs2 =  cs.clone_unchecked() }
+    let mut cs_embedded_hal: esp_hal::gpio::Output<'_> =
+        esp_hal::gpio::Output::new(cs, esp_hal::gpio::Level::High);
+
+
     let mut spi_display = esp_hal::spi::master::Spi::new(
         spi,
         esp_hal::spi::master::Config::default()
-            .with_frequency(26.MHz())
+            .with_frequency(40.MHz())
             .with_mode(esp_hal::spi::Mode::_0),
     )
     .unwrap()
     .with_sck(sclk)
-    .with_mosi(mosi)
-    .with_miso(miso);
+    .with_mosi(mosi);
+    //.with_cs(cs2.into());
 
     let mut delay = Delay.clone();
-    let mut cs_embedded_hal: esp_hal::gpio::Output<'_> =
-        esp_hal::gpio::Output::new(cs, esp_hal::gpio::Level::High);
-    let mut dc = esp_hal::gpio::Output::new(dc, esp_hal::gpio::Level::High);
+    
+    let dc = esp_hal::gpio::Output::new(dc, esp_hal::gpio::Level::High);
 
     let spi_dev1 =
         embedded_hal_bus::spi::ExclusiveDevice::new(spi_display, cs_embedded_hal, delay.clone())
@@ -142,20 +170,24 @@ where
     SCK: esp_hal::gpio::OutputPin,
     CS: esp_hal::gpio::OutputPin,
 {
+    let mut cs2;
+    unsafe {cs2 =  cs.clone_unchecked() }
+    let mut cs_embedded_hal: esp_hal::gpio::Output<'_> =
+        esp_hal::gpio::Output::new(cs, esp_hal::gpio::Level::High);
+
     let mut spi_touch = esp_hal::spi::master::Spi::new(
         spi,
         esp_hal::spi::master::Config::default()
-            .with_frequency(26.MHz())
+            .with_frequency(2000.Hz())
             .with_mode(esp_hal::spi::Mode::_0),
     )
     .unwrap()
     .with_sck(sclk)
     .with_mosi(mosi)
     .with_miso(miso);
+    //.with_cs(cs2.into());
 
     let mut delay = Delay.clone();
-    let mut cs_embedded_hal: esp_hal::gpio::Output<'_> =
-        esp_hal::gpio::Output::new(cs, esp_hal::gpio::Level::High);
 
     let spi_dev1 =
         embedded_hal_bus::spi::ExclusiveDevice::new(spi_touch, cs_embedded_hal, delay.clone())
@@ -168,7 +200,7 @@ where
 #[main]
 async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init({
-        let mut config = esp_hal::Config::default();
+        let mut config = esp_hal::Config::default();                                 
         config.cpu_clock = CpuClock::max();
         config
     });
@@ -182,6 +214,22 @@ async fn main(spawner: Spawner) {
 
     info!("Embassy initialized!");
 
+    let mut io = esp_hal::gpio::Io::new(peripherals.IO_MUX);
+    io.set_interrupt_handler(handler);
+    let touchpin = peripherals.GPIO36;
+    let mut touchpin = Input::new(touchpin, esp_hal::gpio::Pull::None);
+
+
+    critical_section::with(|cs| {
+        touchpin.listen(esp_hal::gpio::Event::RisingEdge);
+        TOUCHINTERRUPT.borrow_ref_mut(cs).replace(touchpin);
+    });
+
+
+
+
+    spawner.spawn(button_task()).unwrap();
+
     let mut display = init_display(
         peripherals.GPIO14, // SCLK
         peripherals.GPIO12, // MISO
@@ -189,7 +237,7 @@ async fn main(spawner: Spawner) {
         peripherals.GPIO15, // CS
         peripherals.GPIO4,  // Reset
         peripherals.GPIO2,  // Data/Command
-        peripherals.SPI2,   // SPI
+        peripherals.SPI3,   // SPI
         peripherals.GPIO21, // Backlight
     );
 
@@ -198,12 +246,16 @@ async fn main(spawner: Spawner) {
         peripherals.GPIO32, // MOSI
         peripherals.GPIO25, // SCLK
         peripherals.GPIO33, // CS
-        peripherals.SPI3,   // SPI
+        peripherals.SPI2,   // SPI
     );
+    
+
+
+
 
     let mut calibration = TouchCalibration::new();
-    calibration.calibrate(&mut display, &mut touch, &mut Delay.clone()).unwrap_or_else(|_| panic!("Calibration failed"));
-    
+    calibration.calibrate(&mut display, &mut touch, &mut Delay.clone(), &mut SIGNAL.receiver().unwrap()).await.unwrap_or_else(|_| panic!("Calibration failed"));
+
     let mut style = MonoTextStyle::new(&FONT_9X18, Rgb565::WHITE);
 
     // Position x:5, y: 10
@@ -212,16 +264,55 @@ async fn main(spawner: Spawner) {
         .unwrap_or_else(|_| panic!("Failed to draw text"));
 
     // Turn text to blue
-    style.set_text_color(Some(Rgb565::BLUE));
+    style.set_text_color(Some(Rgb565::WHITE));
     Text::new("World mother fucker", Point::new(160, 26), style)
         .draw(&mut display)
         .unwrap_or_else(|_| panic!("Failed to draw text"));
 
-    // TODO: Spawn some tasks
-    let _ = spawner;
+    // Spawn a task that waits for the interrupt
+    let mut recv = SIGNAL.receiver().unwrap();
 
     loop {
-        info!("Hello world!");
-        Timer::after(Duration::from_secs(1)).await;
+        recv.changed().await; // Use changed() instead of wait()
+        let rawpoint = touch.read_raw_point().unwrap();
+        let calibrated_point = calibration.apply(rawpoint);
+        info!("Touch at {:?}", calibrated_point);
+        Text::new("here", calibrated_point, style)
+        .draw(&mut display)
+        .unwrap_or_else(|_| panic!("Failed to draw text"));
+    }
+}
+
+#[handler]
+fn handler() {
+    if critical_section::with(|cs| {
+        TOUCHINTERRUPT
+            .borrow_ref_mut(cs)
+            .as_mut()
+            .unwrap()
+            .is_interrupt_set()
+    }) {
+        esp_println::println!("INTERRUPT: touch was pressed");
+        SIGNAL.sender().send(true);
+
+        critical_section::with(|cs| {
+            TOUCHINTERRUPT
+                .borrow_ref_mut(cs)
+                .as_mut()
+                .unwrap()
+                .clear_interrupt()
+        });
+    }
+}
+
+#[embassy_executor::task]
+async fn button_task() {
+    let mut recv = SIGNAL.receiver().unwrap();
+    loop {
+        // Wait for the interrupt notification
+        let _ = recv.changed().await;
+
+        // Handle touch press
+        info!("touch boring task: Touch was pressed");
     }
 }

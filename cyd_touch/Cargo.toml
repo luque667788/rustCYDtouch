@@ -8,3 +8,4 @@ embedded-graphics = "0.8.1"
 embedded-hal = "1.0.0"
 libm = "0.2"
 esp-println = { version = "0.13.0", features = ["esp32", "log"] }
+embassy-sync = { version = "0.6.2" }
