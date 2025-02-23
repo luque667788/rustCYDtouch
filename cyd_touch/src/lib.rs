@@ -7,6 +7,7 @@ use embassy_sync::{
     signal::Signal,
     watch::{Receiver, Watch},
 };
+use embassy_time::{Duration, Timer};
 use embedded_graphics::{
     mono_font::{ascii::FONT_9X18, MonoTextStyle},
     pixelcolor::Rgb565,
@@ -86,7 +87,7 @@ impl<T: SpiBus> TouchSensor<T> {
     }
 
     fn init_touch(&mut self) -> Result<(), ErrorKind> {
-        //end here
+
         let mut write_buf: [u8; 5] = [0; 5];
         let mut read_buf: [u8; 5] = [0; 5];
 
@@ -98,7 +99,7 @@ impl<T: SpiBus> TouchSensor<T> {
 
         println!("going to measure again");
 
-        const num_samples: usize = 1; // tune this value to get a better average
+        const num_samples: usize = 2; // tune this value to get a better average
         let mut x_samples = [0i16; num_samples];
         let mut y_samples = [0i16; num_samples];
         let mut x_sum: i16 = 0;
@@ -153,7 +154,7 @@ impl TouchCalibration {
         return Point::new(x as i32, y as i32);
     }
 
-    pub async fn calibrate<D, T, Dl, M, A, const N: usize>(
+    pub async fn calibrate<D, T, M, A, const N: usize>(
         &mut self,
         display: &mut D,
         touchscreen: &mut TouchSensor<T>,
@@ -162,7 +163,6 @@ impl TouchCalibration {
     where
         D: DrawTarget<Color = Rgb565> + embedded_graphics::geometry::OriginDimensions,
         T: SpiBus,
-        Dl: DelayNs,
         M: RawMutex,
         A: Clone,
     {
@@ -256,6 +256,8 @@ impl TouchCalibration {
 
         // Display a message saying the calibration was successful
         Text::new("Calibration successful!", center, success_style).draw(display)?;
+        Timer::after(Duration::from_millis(2000)).await;
+        display.clear(Rgb565::BLACK)?;
         Ok(())
     }
 }

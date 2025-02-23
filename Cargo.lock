@@ -85,6 +85,7 @@ name = "cyd_touch"
 version = "0.1.0"
 dependencies = [
  "embassy-sync",
+ "embassy-time",
  "embedded-graphics",
  "embedded-hal 1.0.0",
  "esp-println",
