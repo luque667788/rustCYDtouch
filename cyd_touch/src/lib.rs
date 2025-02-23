@@ -18,22 +18,20 @@ use libm::roundf;
 
 use embedded_graphics::Drawable;
 
-use embedded_hal::{delay::DelayNs, spi::SpiDevice};
+use embedded_hal::{delay::DelayNs, spi::{SpiBus, SpiDevice}};
 
 use embedded_hal::spi::ErrorKind;
 use esp_println::println;
 
-pub struct TouchSensor<T: SpiDevice> {
+pub struct TouchSensor<T: SpiBus> {
     touch_spi: T,
     touch_pressed: Arc<AtomicBool>,
     pub callback: Box<dyn FnOnce()>,
 }
 
-// i could implement this without diynamci dispatch but the nthe syntax would be strange
-// the user would need to provide a function that accepts a notehr funciton and also the atomic bool
-// this would defeat the purpose of the abstraction
 
-impl<T: SpiDevice> TouchSensor<T> {
+
+impl<T: SpiBus> TouchSensor<T> {
     pub fn new(spi_device: T, // maybe change to a generic spi device later
     ) -> TouchSensor<T> {
         let touch_pressed = Arc::new(AtomicBool::new(false));
@@ -43,7 +41,7 @@ impl<T: SpiDevice> TouchSensor<T> {
             touch_pressed_clone1.store(true, Ordering::Relaxed);
         });
 
-        /*
+        /* TODO! one day make this work with the light sleep mode and nostd
         unsafe {
             esp_idf_svc::hal::sys::gpio_wakeup_enable(irq_touch.pin(), 0);
             esp_idf_svc::hal::sys::esp_sleep_enable_gpio_wakeup();
@@ -159,12 +157,11 @@ impl TouchCalibration {
         &mut self,
         display: &mut D,
         touchscreen: &mut TouchSensor<T>,
-        thisdelay: &mut Dl,
         signal: &mut Receiver<'_, M, A, N>,
     ) -> Result<(), <D as DrawTarget>::Error>
     where
         D: DrawTarget<Color = Rgb565> + embedded_graphics::geometry::OriginDimensions,
-        T: SpiDevice,
+        T: SpiBus,
         Dl: DelayNs,
         M: RawMutex,
         A: Clone,
@@ -189,10 +186,7 @@ impl TouchCalibration {
             .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
             .draw(display)?;
 
-        /*will implement a blocking behoavir first later i may change this to a thread or somehting pralle
-        byut for now i ma just going to wait for a notification signal tirgered form the interrupt
-        but i will need also to reenable the interrrupt after it is triggered everytime
-         */
+
         println!("Waiting for touch...");
         signal.changed().await;
 
@@ -262,8 +256,6 @@ impl TouchCalibration {
 
         // Display a message saying the calibration was successful
         Text::new("Calibration successful!", center, success_style).draw(display)?;
-        thisdelay.delay_ms(2000);
-        display.clear(Rgb565::BLACK)?;
         Ok(())
     }
 }

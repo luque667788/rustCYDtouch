@@ -99,15 +99,16 @@ where
     )
     .unwrap()
     .with_sck(sclk)
-    .with_mosi(mosi);
-    //.with_cs(cs2.into());
+    .with_mosi(mosi)
+    .with_miso(miso)
+    .into_async();
 
     let mut delay = Delay.clone();
     
     let dc = esp_hal::gpio::Output::new(dc, esp_hal::gpio::Level::High);
 
     let spi_dev1 =
-        embedded_hal_bus::spi::ExclusiveDevice::new(spi_display, cs_embedded_hal, delay.clone())
+        embedded_hal_bus::spi::ExclusiveDevice::new_no_delay(spi_display, cs_embedded_hal)
             .unwrap();
 
     let buffer = SPI_BUFFER.init([0; 1024]);
@@ -163,37 +164,29 @@ fn init_touch<'d, MISO, MOSI, SCK, CS>(
     sclk: impl Peripheral<P = SCK> + 'd,
     cs: impl Peripheral<P = CS> + 'd,
     spi: impl Peripheral<P = impl esp_hal::spi::master::PeripheralInstance> + 'd,
-) -> cyd_touch::TouchSensor<impl embedded_hal::spi::SpiDevice + 'd>
+) -> cyd_touch::TouchSensor<impl embedded_hal::spi::SpiBus + 'd>
 where
     MISO: esp_hal::gpio::InputPin,
     MOSI: esp_hal::gpio::OutputPin,
     SCK: esp_hal::gpio::OutputPin,
     CS: esp_hal::gpio::OutputPin,
 {
-    let mut cs2;
-    unsafe {cs2 =  cs.clone_unchecked() }
-    let mut cs_embedded_hal: esp_hal::gpio::Output<'_> =
-        esp_hal::gpio::Output::new(cs, esp_hal::gpio::Level::High);
+
 
     let mut spi_touch = esp_hal::spi::master::Spi::new(
         spi,
         esp_hal::spi::master::Config::default()
-            .with_frequency(2000.Hz())
+            .with_frequency(2.MHz())
             .with_mode(esp_hal::spi::Mode::_0),
     )
     .unwrap()
     .with_sck(sclk)
     .with_mosi(mosi)
-    .with_miso(miso);
-    //.with_cs(cs2.into());
+    .with_miso(miso)
+    .with_cs(cs).into_async(); // Ensure CS is included for SPI communication
 
-    let mut delay = Delay.clone();
 
-    let spi_dev1 =
-        embedded_hal_bus::spi::ExclusiveDevice::new(spi_touch, cs_embedded_hal, delay.clone())
-            .unwrap();
-
-    let mut touch = cyd_touch::TouchSensor::new(spi_dev1);
+    let mut touch = cyd_touch::TouchSensor::new(spi_touch);
     touch
 }
 
@@ -254,7 +247,7 @@ async fn main(spawner: Spawner) {
 
 
     let mut calibration = TouchCalibration::new();
-    calibration.calibrate(&mut display, &mut touch, &mut Delay.clone(), &mut SIGNAL.receiver().unwrap()).await.unwrap_or_else(|_| panic!("Calibration failed"));
+    calibration.calibrate(&mut display, &mut touch, &mut SIGNAL.receiver().unwrap()).await.unwrap_or_else(|_| panic!("Calibration failed"));
 
     let mut style = MonoTextStyle::new(&FONT_9X18, Rgb565::WHITE);
 
@@ -265,7 +258,7 @@ async fn main(spawner: Spawner) {
 
     // Turn text to blue
     style.set_text_color(Some(Rgb565::WHITE));
-    Text::new("World mother fucker", Point::new(160, 26), style)
+    Text::new("World", Point::new(160, 26), style)
         .draw(&mut display)
         .unwrap_or_else(|_| panic!("Failed to draw text"));
 
@@ -277,9 +270,11 @@ async fn main(spawner: Spawner) {
         let rawpoint = touch.read_raw_point().unwrap();
         let calibrated_point = calibration.apply(rawpoint);
         info!("Touch at {:?}", calibrated_point);
-        Text::new("here", calibrated_point, style)
-        .draw(&mut display)
-        .unwrap_or_else(|_| panic!("Failed to draw text"));
+        //Text::new("here", calibrated_point, style)
+        //.draw(&mut display)
+        //.unwrap_or_else(|_| panic!("Failed to draw text"));
+        
+        Timer::after(Duration::from_millis(1000)).await;
     }
 }
 
