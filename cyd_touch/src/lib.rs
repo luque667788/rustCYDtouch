@@ -19,22 +19,37 @@ use libm::roundf;
 
 use embedded_graphics::Drawable;
 
-use embedded_hal::{delay::DelayNs, spi::{SpiBus, SpiDevice}};
+use embedded_hal::{delay::DelayNs, spi::{SpiDevice}};
 
 use embedded_hal::spi::ErrorKind;
 use esp_println::println;
 
-pub struct TouchSensor<T: SpiBus> {
+/// A structure responsible for interfacing with a touchscreen via SPI communication.
+///
+/// The TouchSensor provides methods to initialize, read coordinates from, and manage
+/// interactions with a touchscreen controller connected via SPI.
+pub struct TouchSensor<T: SpiDevice> {
+    /// The SPI device used to communicate with the touchscreen controller
     touch_spi: T,
+    /// Thread-safe atomic boolean that tracks touch state
     touch_pressed: Arc<AtomicBool>,
+    /// A function callback executed when a touch event is detected
     pub callback: Box<dyn FnOnce()>,
 }
 
-
-
-impl<T: SpiBus> TouchSensor<T> {
-    pub fn new(spi_device: T, // maybe change to a generic spi device later
-    ) -> TouchSensor<T> {
+impl<T: SpiDevice> TouchSensor<T> {
+    /// Creates a new TouchSensor instance.
+    ///
+    /// This constructor initializes the touch sensor with an SPI device for communication.
+    /// It creates an atomic boolean for tracking touch state and sets up a callback function
+    /// that gets triggered on touch events.
+    ///
+    /// # Parameters
+    /// * `spi_device` - An SPI device implementing the `SpiDevice` trait for touch controller communication
+    ///
+    /// # Returns
+    /// A configured TouchSensor instance ready for use
+    pub fn new(spi_device: T) -> TouchSensor<T> {
         let touch_pressed = Arc::new(AtomicBool::new(false));
         let touch_pressed_clone1 = Arc::clone(&touch_pressed);
 
@@ -59,6 +74,23 @@ impl<T: SpiBus> TouchSensor<T> {
         return touchscreen;
     }
 
+    /// Reads the current touch coordinates from the touchscreen controller.
+    ///
+    /// This method performs an SPI transaction to request and retrieve touch coordinates.
+    /// It follows the protocol defined by the touchscreen controller, which involves:
+    ///
+    /// 1. Sending a series of control bytes to request position data
+    /// 2. Reading the response bytes containing X and Y coordinates
+    /// 3. Processing the raw data by combining bytes and applying bit shifts to extract the actual coordinates
+    ///
+    /// The SPI transaction uses a specific protocol where:
+    /// - `0xD0` requests touch data with pen interrupt enabled
+    /// - The following bytes are structured to request 16-bit X and Y readings
+    /// - The received data needs bit-shifting by 3 positions to get the actual coordinates
+    ///
+    /// # Returns
+    /// * `Ok((y, x))` - A tuple containing the Y and X coordinates as 16-bit integers
+    /// * `Err` - An error from the SPI transaction if communication fails
     pub fn read_raw_point(&mut self) -> Result<(i16, i16), ErrorKind> {
         /*we can optimize this measurement if there are many measyerement (a lot of samplings and the ncalcualte teh average of somethighn) */
 
@@ -86,8 +118,22 @@ impl<T: SpiBus> TouchSensor<T> {
         Ok((y, x))
     }
 
+    /// Initializes the touchscreen by performing test measurements.
+    ///
+    /// This private method performs initial communication with the touch controller to verify operation
+    /// and determine baseline measurements. It:
+    ///
+    /// 1. Performs an initial SPI communication to establish connection
+    /// 2. Samples multiple touch readings to calculate average values
+    /// 3. Prints diagnostic information to the console
+    ///
+    /// This initialization process helps detect any communication issues early and provides baseline
+    /// values for touch coordinates.
+    ///
+    /// # Returns
+    /// * `Ok(())` - If initialization is successful
+    /// * `Err` - An error from the SPI transaction if communication fails
     fn init_touch(&mut self) -> Result<(), ErrorKind> {
-
         let mut write_buf: [u8; 5] = [0; 5];
         let mut read_buf: [u8; 5] = [0; 5];
 
@@ -129,16 +175,30 @@ impl<T: SpiBus> TouchSensor<T> {
     */
 }
 
+/// A structure for calibrating touchscreen coordinates to match display coordinates.
+///
+/// TouchCalibration stores transformation parameters (scaling factors and offsets) that convert
+/// raw touchscreen readings into display coordinates. It also provides methods to perform
+/// the calibration process and apply the transformation to touch coordinates.
 pub struct TouchCalibration {
+    /// Scaling factor for X coordinates
     pub alpha_x: f32,
-
+    /// Offset adjustment for X coordinates
     pub delta_x: f32,
+    /// Scaling factor for Y coordinates
     pub alpha_y: f32,
-
+    /// Offset adjustment for Y coordinates
     pub delta_y: f32,
 }
 
 impl TouchCalibration {
+    /// Creates a new TouchCalibration instance with default values.
+    ///
+    /// Initializes a calibration structure with identity transformation (scaling factors of 1.0
+    /// and offsets of 0.0), which results in raw touch coordinates being used without adjustment.
+    ///
+    /// # Returns
+    /// A new TouchCalibration instance with default values
     pub fn new() -> TouchCalibration {
         TouchCalibration {
             alpha_x: 1.0,
@@ -148,12 +208,58 @@ impl TouchCalibration {
         }
     }
 
+    /// Applies the calibration transformation to raw touch coordinates.
+    ///
+    /// This method converts raw touchscreen coordinates to display coordinates using
+    /// the calibration parameters. The transformation involves:
+    ///
+    /// 1. Converting input values to floating point
+    /// 2. Applying offsets (delta_x, delta_y)
+    /// 3. Applying scaling factors (alpha_x, alpha_y)
+    /// 4. Converting back to integer coordinates for display use
+    ///
+    /// # Parameters
+    /// * `(ix, iy)` - A tuple containing raw X and Y touch coordinates as 16-bit integers
+    ///
+    /// # Returns
+    /// A Point structure containing the calibrated X and Y coordinates in display space
     pub fn apply(&self, (ix, iy): (i16, i16)) -> Point {
         let x = (ix as f32 + self.delta_x) * self.alpha_x;
         let y = (iy as f32 + self.delta_y) * self.alpha_y;
         return Point::new(x as i32, y as i32);
     }
 
+    /// Performs an interactive touchscreen calibration procedure.
+    ///
+    /// This asynchronous method guides the user through a calibration process by:
+    ///
+    /// 1. Clearing the display and showing instructions
+    /// 2. Drawing calibration points at known screen positions (red dot, then yellow dot)
+    /// 3. Waiting for user touches at each point using the provided signal
+    /// 4. Reading raw touch coordinates when each point is touched
+    /// 5. Calculating calibration parameters (scaling factors and offsets) based on the relation
+    ///    between known screen positions and raw touch readings
+    /// 6. Averaging multiple calibration points for better accuracy
+    /// 7. Updating the calibration parameters in the current instance
+    /// 8. Displaying a success message
+    ///
+    /// The calibration uses two reference points to determine both scaling and offset in both dimensions.
+    ///
+    /// # Type Parameters
+    /// * `D` - A display type that implements DrawTarget with Rgb565 color support
+    /// * `T` - An SPI device type used for touchscreen communication
+    /// * `M` - A mutex type for the signal
+    /// * `A` - A cloneable type for the signal
+    /// * `N` - A constant size parameter for the signal buffer
+    ///
+    /// # Parameters
+    /// * `display` - A mutable reference to the display for drawing calibration UI
+    /// * `touchscreen` - A mutable reference to the TouchSensor for reading coordinates
+    /// * `signal` - A mutable reference to a Receiver signal used to wait for touch events
+    ///
+    /// # Returns
+    /// * `Ok(())` - If calibration completes successfully
+    /// * `Err` - An error from display operations if they fail
     pub async fn calibrate<D, T, M, A, const N: usize>(
         &mut self,
         display: &mut D,
@@ -162,7 +268,7 @@ impl TouchCalibration {
     ) -> Result<(), <D as DrawTarget>::Error>
     where
         D: DrawTarget<Color = Rgb565> + embedded_graphics::geometry::OriginDimensions,
-        T: SpiBus,
+        T: SpiDevice,
         M: RawMutex,
         A: Clone,
     {

@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+use alloc::boxed::Box;
+use alloc::sync::Arc;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel;
@@ -8,6 +10,7 @@ use embassy_sync::pubsub::PubSubChannel;
 use embassy_sync::watch::Watch;
 use embassy_time::{Delay, Duration, Timer};
 use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal::spi::SpiBus;
 use esp_backtrace as _;
 
 use esp_hal::interrupt::InterruptConfigurable;
@@ -97,7 +100,7 @@ where
     let dc = esp_hal::gpio::Output::new(dc, esp_hal::gpio::Level::High);
 
     let spi_dev1 =
-        embedded_hal_bus::spi::ExclusiveDevice::new_no_delay(spi_display, cs_embedded_hal).unwrap();
+        embedded_hal_bus::spi::ExclusiveDevice::new_no_delay(spi_display, cs_embedded_hal).unwrap(); //  get a spi device from the spi bus
 
     let buffer = SPI_BUFFER.init([0; 1024]);
     let dsp_interface = mipidsi::interface::SpiInterface::new(spi_dev1, dc, buffer); //change the value of the buffer if you like
@@ -117,65 +120,6 @@ where
     display
 }
 
-/// Initializes a touch sensor using SPI communication for the CYD touch panel.
-///
-/// # Arguments
-/// * `miso` - Master Input Slave Output pin
-/// * `mosi` - Master Output Slave Input pin
-/// * `sclk` - Serial Clock pin
-/// * `cs` - Chip Select pin
-/// * `spi` - SPI peripheral instance
-///
-/// # Returns
-/// A `TouchSensor` instance configured for the CYD touch panel
-///
-/// # Type Parameters
-/// * `'d` - Lifetime of the peripheral references
-/// * `MISO` - Type implementing `esp_hal::gpio::InputPin`
-/// * `MOSI` - Type implementing `esp_hal::gpio::OutputPin`
-/// * `SCK` - Type implementing `esp_hal::gpio::OutputPin`
-/// * `CS` - Type implementing `esp_hal::gpio::OutputPin`
-///
-/// # Example
-/// ```no_run
-/// let mut touch = init_touch(
-///     peripherals.GPIO39, // MISO
-///     peripherals.GPIO32, // MOSI
-///     peripherals.GPIO25, // SCLK
-///     peripherals.GPIO33, // CS
-///     peripherals.SPI3,   // SPI
-/// );
-/// ```
-fn init_touch<'d, MISO, MOSI, SCK, CS>(
-    miso: impl Peripheral<P = MISO> + 'd,
-    mosi: impl Peripheral<P = MOSI> + 'd,
-    sclk: impl Peripheral<P = SCK> + 'd,
-    cs: impl Peripheral<P = CS> + 'd,
-    spi: impl Peripheral<P = impl esp_hal::spi::master::PeripheralInstance> + 'd,
-) -> cyd_touch::TouchSensor<impl embedded_hal::spi::SpiBus + 'd>
-where
-    MISO: esp_hal::gpio::InputPin,
-    MOSI: esp_hal::gpio::OutputPin,
-    SCK: esp_hal::gpio::OutputPin,
-    CS: esp_hal::gpio::OutputPin,
-{
-    let mut spi_touch = esp_hal::spi::master::Spi::new(
-        spi,
-        esp_hal::spi::master::Config::default()
-            .with_frequency(2.MHz())
-            .with_mode(esp_hal::spi::Mode::_0),
-    )
-    .unwrap()
-    .with_sck(sclk)
-    .with_mosi(mosi)
-    .with_miso(miso)
-    .with_cs(cs)
-    .into_async(); // Ensure CS is included for SPI communication
-
-    let mut touch = cyd_touch::TouchSensor::new(spi_touch);
-    touch
-}
-
 #[main]
 async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init({
@@ -193,8 +137,6 @@ async fn main(spawner: Spawner) {
 
     info!("Embassy initialized!");
 
-    
-
     let mut display = init_display(
         peripherals.GPIO14, // SCLK
         peripherals.GPIO12, // MISO
@@ -206,13 +148,27 @@ async fn main(spawner: Spawner) {
         peripherals.GPIO21, // Backlight
     );
 
-    let mut touch = init_touch(
-        peripherals.GPIO39, // MISO
-        peripherals.GPIO32, // MOSI
-        peripherals.GPIO25, // SCLK
-        peripherals.GPIO33, // CS
-        peripherals.SPI3,   // SPI
-    );
+    let mut spi_touch = esp_hal::spi::master::Spi::new(
+        peripherals.SPI3,
+        esp_hal::spi::master::Config::default()
+            .with_frequency(2.MHz())
+            .with_mode(esp_hal::spi::Mode::_0),
+    )
+    .unwrap()
+    .with_sck(peripherals.GPIO25)
+    .with_mosi(peripherals.GPIO32)
+    .with_miso(peripherals.GPIO39)
+    .into_async(); // Ensure CS is included for SPI communication
+
+    let spi_bus: Mutex<
+        CriticalSectionRawMutex,
+        RefCell<esp_hal::spi::master::Spi<'_, esp_hal::Async>>,
+    > = Mutex::<CriticalSectionRawMutex, _>::new(RefCell::new(spi_touch));
+    // Convert cs to a proper output pin before using it with SpiDevice
+    let cs_output = esp_hal::gpio::Output::new(peripherals.GPIO33, esp_hal::gpio::Level::High);
+    let spi_device = SpiDevice::new(&spi_bus, cs_output); // another way to get a spi device from the spi bus
+
+    let mut touch = cyd_touch::TouchSensor::new(spi_device);
     let touchpin = peripherals.GPIO36;
     let mut touchpin: Input<'_> = Input::new(touchpin, esp_hal::gpio::Pull::Up);
 
@@ -249,9 +205,8 @@ async fn main(spawner: Spawner) {
         let calibrated_point = calibration.apply(rawpoint);
         info!("Touch at {:?}", calibrated_point);
         Text::new("here", calibrated_point, style)
-        .draw(&mut display)
-        .unwrap_or_else(|_| panic!("Failed to draw text"));
-
+            .draw(&mut display)
+            .unwrap_or_else(|_| panic!("Failed to draw text"));
     }
 }
 
@@ -262,7 +217,7 @@ async fn button_task(mut pin: Input<'static>) {
         pin.wait_for(esp_hal::gpio::Event::FallingEdge).await;
         // Wait for the interrupt notification
         sender.send(true);
-        
+
         // Handle touch press
         info!("touch boring task: Touch was pressed");
         Timer::after(Duration::from_millis(100)).await;
