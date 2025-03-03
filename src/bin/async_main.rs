@@ -1,49 +1,36 @@
 #![no_std]
 #![no_main]
 
-use alloc::boxed::Box;
-use alloc::sync::Arc;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel;
-use embassy_sync::pubsub::PubSubChannel;
 use embassy_sync::watch::Watch;
 use embassy_time::{Delay, Duration, Timer};
-use embedded_hal::digital::{InputPin, OutputPin};
-use embedded_hal::spi::SpiBus;
 use esp_backtrace as _;
 
-use esp_hal::interrupt::InterruptConfigurable;
 use esp_hal::{
-    clock::CpuClock, gpio::Input, handler, peripheral::Peripheral, time::RateExtU32, touch,
+    clock::CpuClock, gpio::Input, peripheral::Peripheral, time::RateExtU32,
 };
 use esp_hal_embassy::main;
 use log::info;
 use static_cell::StaticCell;
 
-use core::borrow::Borrow;
 use core::cell::RefCell;
 use embassy_embedded_hal::shared_bus::blocking::spi::SpiDevice;
-use embassy_sync::blocking_mutex::raw::NoopRawMutex;
 use embassy_sync::blocking_mutex::Mutex;
-use embassy_sync::channel::Channel;
-use embassy_sync::channel::TrySendError;
 
 use embedded_graphics::{
     mono_font::{ascii::FONT_9X18, MonoTextStyle},
     pixelcolor::Rgb565,
     prelude::*,
-    primitives::{Circle, PrimitiveStyle},
     text::{renderer::CharacterStyle, Text},
 };
 
-use cyd_touch::{TouchCalibration, TouchSensor};
+use cyd_touch::TouchCalibration;
 
 static SPI_BUFFER: StaticCell<[u8; 1024]> = StaticCell::new(); // Adjust size as needed
 extern crate alloc;
 const NUM_SUBSCRIBERS: usize = 4;
 // Define a static array of channels
-use embassy_sync::signal::Signal;
 
 static SIGNAL: Watch<CriticalSectionRawMutex, bool, 4> = Watch::new();
 
@@ -80,10 +67,10 @@ where
     DC: esp_hal::gpio::OutputPin,
     BL: esp_hal::gpio::OutputPin,
 {
-    let mut cs_embedded_hal: esp_hal::gpio::Output<'_> =
+    let cs_embedded_hal: esp_hal::gpio::Output<'_> =
         esp_hal::gpio::Output::new(cs, esp_hal::gpio::Level::High);
 
-    let mut spi_display = esp_hal::spi::master::Spi::new(
+    let spi_display = esp_hal::spi::master::Spi::new(
         spi,
         esp_hal::spi::master::Config::default()
             .with_frequency(40.MHz())
@@ -148,7 +135,7 @@ async fn main(spawner: Spawner) {
         peripherals.GPIO21, // Backlight
     );
 
-    let mut spi_touch = esp_hal::spi::master::Spi::new(
+    let spi_touch = esp_hal::spi::master::Spi::new(
         peripherals.SPI3,
         esp_hal::spi::master::Config::default()
             .with_frequency(2.MHz())
@@ -170,7 +157,7 @@ async fn main(spawner: Spawner) {
 
     let mut touch = cyd_touch::TouchSensor::new(spi_device);
     let touchpin = peripherals.GPIO36;
-    let mut touchpin: Input<'_> = Input::new(touchpin, esp_hal::gpio::Pull::Up);
+    let touchpin: Input<'_> = Input::new(touchpin, esp_hal::gpio::Pull::Up);
 
     spawner.spawn(button_task(touchpin)).unwrap(); // Spawn the task that waits for the TOUCHPIN "interrupt"
 

@@ -1,11 +1,8 @@
 #![no_std]
-use core::sync::atomic::{AtomicBool, Ordering};
 extern crate alloc;
-use alloc::{boxed::Box, sync::Arc};
 use embassy_sync::{
     blocking_mutex::raw::RawMutex,
-    signal::Signal,
-    watch::{Receiver, Watch},
+    watch::Receiver,
 };
 use embassy_time::{Duration, Timer};
 use embedded_graphics::{
@@ -19,9 +16,8 @@ use libm::roundf;
 
 use embedded_graphics::Drawable;
 
-use embedded_hal::{delay::DelayNs, spi::{SpiDevice}};
 
-use embedded_hal::spi::ErrorKind;
+use embedded_hal::spi::{ErrorKind, SpiDevice};
 use esp_println::println;
 
 /// A structure responsible for interfacing with a touchscreen via SPI communication.
@@ -31,10 +27,6 @@ use esp_println::println;
 pub struct TouchSensor<T: SpiDevice> {
     /// The SPI device used to communicate with the touchscreen controller
     touch_spi: T,
-    /// Thread-safe atomic boolean that tracks touch state
-    touch_pressed: Arc<AtomicBool>,
-    /// A function callback executed when a touch event is detected
-    pub callback: Box<dyn FnOnce()>,
 }
 
 impl<T: SpiDevice> TouchSensor<T> {
@@ -50,12 +42,8 @@ impl<T: SpiDevice> TouchSensor<T> {
     /// # Returns
     /// A configured TouchSensor instance ready for use
     pub fn new(spi_device: T) -> TouchSensor<T> {
-        let touch_pressed = Arc::new(AtomicBool::new(false));
-        let touch_pressed_clone1 = Arc::clone(&touch_pressed);
 
-        let callback = Box::new(move || {
-            touch_pressed_clone1.store(true, Ordering::Relaxed);
-        });
+
 
         /* TODO! one day make this work with the light sleep mode and nostd
         unsafe {
@@ -65,8 +53,6 @@ impl<T: SpiDevice> TouchSensor<T> {
 
         let mut touchscreen = TouchSensor {
             touch_spi: spi_device,
-            touch_pressed,
-            callback,
         };
 
         touchscreen.init_touch().unwrap();
@@ -134,7 +120,7 @@ impl<T: SpiDevice> TouchSensor<T> {
     /// * `Ok(())` - If initialization is successful
     /// * `Err` - An error from the SPI transaction if communication fails
     fn init_touch(&mut self) -> Result<(), ErrorKind> {
-        let mut write_buf: [u8; 5] = [0; 5];
+        let write_buf: [u8; 5] = [0; 5];
         let mut read_buf: [u8; 5] = [0; 5];
 
         self.touch_spi
@@ -145,12 +131,12 @@ impl<T: SpiDevice> TouchSensor<T> {
 
         println!("going to measure again");
 
-        const num_samples: usize = 2; // tune this value to get a better average
-        let mut x_samples = [0i16; num_samples];
-        let mut y_samples = [0i16; num_samples];
+        const NUM_SAMPLES: usize = 2; // tune this value to get a better average
+        let mut x_samples = [0i16; NUM_SAMPLES];
+        let mut y_samples = [0i16; NUM_SAMPLES];
         let mut x_sum: i16 = 0;
         let mut y_sum: i16 = 0;
-        for i in 0..num_samples {
+        for i in 0..NUM_SAMPLES {
             let (x, y) = self.read_raw_point()?;
             x_samples[i as usize] = x;
             y_samples[i as usize] = y;
@@ -159,8 +145,8 @@ impl<T: SpiDevice> TouchSensor<T> {
         }
         //println!("X samples: {:?}", x_samples);
         //println!("Y samples: {:?}", y_samples);
-        println!("X average: {}", x_sum / num_samples as i16);
-        println!("Y average: {}", y_sum / num_samples as i16);
+        println!("X average: {}", x_sum / NUM_SAMPLES as i16);
+        println!("Y average: {}", y_sum / NUM_SAMPLES as i16);
         Ok(())
     }
 
@@ -357,7 +343,7 @@ impl TouchCalibration {
         // Calculate the center position of the screen
         let center = Point::new(
             (display.size().width as i32 / 2) - 80,
-            (display.size().height as i32 / 2),
+            display.size().height as i32 / 2,
         );
 
         // Display a message saying the calibration was successful
