@@ -4,20 +4,19 @@ A Rust library for interfacing with touchscreens on ESP32 microcontrollers, spec
 
 ## Features
 
-- Platform-independent SPI communication with touch controllers
+- Platform-independent SPI communication with touch controllers using embedded-hal abstractions
 - Raw touch coordinate readings
 - Touch calibration routines to map touch coordinates to display coordinates
-- Coordinate system transformations
 - Written in 100% Rust with `no_std` support
 
 ## Platform Independence
 
-This crate is designed to be as platform-independent as possible:
+I've tried to keep this library as platform-independent as possible with my level of knowledge:
 
-- Uses `embedded-hal` traits for hardware abstraction
-- SPI communication is platform-agnostic
-- Touch interrupt pin handling is delegated to the user application
-- Core functionality works on any platform that implements the required `embedded-hal` traits
+- Uses `embedded-hal` traits for hardware abstraction where applicable
+- SPI communication aims to be platform-agnostic using `SpiDevice` trait from `embedded-hal`
+- Touch interrupt handling is left to the user application for flexibility
+- The core functionality should work on platforms that implement the required `embedded-hal` traits (though you'll need to handle interrupts in your application)
 
 ## Current Limitations
 
