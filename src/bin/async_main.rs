@@ -29,8 +29,6 @@ use cyd_touch::TouchCalibration;
 
 static SPI_BUFFER: StaticCell<[u8; 1024]> = StaticCell::new(); // Adjust size as needed
 extern crate alloc;
-const NUM_SUBSCRIBERS: usize = 4;
-// Define a static array of channels
 
 static SIGNAL: Watch<CriticalSectionRawMutex, bool, 4> = Watch::new();
 
