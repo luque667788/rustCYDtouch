@@ -7,11 +7,10 @@ exclude = ["examples"]
 [workspace.package]
 version = "0.1.0"
 authors = ["Your Name <your.email@example.com>"]
-description = "Library for CYD touch functionality"
+description = "Library for basic CYD touchscreen functionality"
 edition = "2021"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/yourusername/v2cydlib"
-documentation = "https://docs.rs/cyd_touch"
+license = "MIT"
+repository = "https://github.com/luque667788/rustCYDtouch"
 readme = "README.md"
 keywords = ["esp32", "touch", "embedded"]
 categories = ["embedded", "hardware-support"]

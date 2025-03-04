@@ -262,6 +262,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "embassy_example"
+version = "0.1.0"
+dependencies = [
+ "critical-section",
+ "cyd_touch",
+ "display-interface-spi",
+ "embassy-embedded-hal",
+ "embassy-executor",
+ "embassy-sync",
+ "embassy-time",
+ "embedded-graphics",
+ "embedded-hal 1.0.0",
+ "embedded-hal-bus",
+ "esp-alloc",
+ "esp-backtrace",
+ "esp-hal",
+ "esp-hal-embassy",
+ "esp-println",
+ "log",
+ "mipidsi",
+ "static_cell",
+]
+
+[[package]]
 name = "embedded-can"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1065,30 +1089,6 @@ name = "unicode-ident"
 version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a210d160f08b701c8721ba1c726c11662f877ea6b7094007e1ca9a1041945034"
-
-[[package]]
-name = "v2cydlib"
-version = "0.1.0"
-dependencies = [
- "critical-section",
- "cyd_touch",
- "display-interface-spi",
- "embassy-embedded-hal",
- "embassy-executor",
- "embassy-sync",
- "embassy-time",
- "embedded-graphics",
- "embedded-hal 1.0.0",
- "embedded-hal-bus",
- "esp-alloc",
- "esp-backtrace",
- "esp-hal",
- "esp-hal-embassy",
- "esp-println",
- "log",
- "mipidsi",
- "static_cell",
-]
 
 [[package]]
 name = "vcell"

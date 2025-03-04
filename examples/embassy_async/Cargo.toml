@@ -1,5 +1,5 @@
 [package]
-name = "v2cydlib"
+name = "embassy_example"
 version = "0.1.0"
 edition = "2021"
 
