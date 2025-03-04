@@ -17,12 +17,11 @@ I've tried to keep this library as platform-independent as possible with my leve
 - SPI communication aims to be platform-agnostic using `SpiDevice` trait from `embedded-hal`
 - Touch interrupt handling is left to the user application for flexibility
 - The core functionality should work on platforms that implement the required `embedded-hal` traits (though you'll need to handle interrupts in your application)
-
 ## Current Limitations
 
 - Basic functionality currently supports single-touch only (no multi-touch)
 - No drag gesture support (only tap/click events)
-- This is a personal project that works for my specific use case and may require modifications for your needs. Feel free to use it as a reference example for interfacing with the touch sensor on CYD boards via SPI.
+- This is a personal project that primarily addresses my specific use cases and may not work out of the box for your needs. I'm sharing it in the hope that it might serve as a helpful example or inspiration for your own implementations.
 
 
 ## Example
