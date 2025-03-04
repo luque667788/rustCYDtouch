@@ -1,0 +1,6 @@
+$ mkdir -p "/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/build/az-45e634ed5f44cb72/out/try_track_caller"
+$ cd "/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/build/az-45e634ed5f44cb72/out/try_track_caller"
+$ printf '%s' "// try_tra"... > "/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/build/az-45e634ed5f44cb72/out/try_track_caller/try_track_caller.rs"
+$ cd "/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/build/az-45e634ed5f44cb72/out/try_track_caller" && "/home/luque/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/bin/rustc" "try_track_caller.rs" "--emit=dep-info,metadata" >& /dev/null
+cargo:rustc-cfg=track_caller
+$ rm -r "/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/build/az-45e634ed5f44cb72/out/try_track_caller"

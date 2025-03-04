@@ -1,0 +1,11 @@
+/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/deps/libembassy_time-944d1b068d075425.rmeta: /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/lib.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/fmt.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/delay.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/duration.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/instant.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/timer.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/../README.md
+
+/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/deps/embassy_time-944d1b068d075425.d: /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/lib.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/fmt.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/delay.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/duration.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/instant.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/timer.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/../README.md
+
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/lib.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/fmt.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/delay.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/duration.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/instant.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/timer.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-time-0.4.0/src/../README.md:

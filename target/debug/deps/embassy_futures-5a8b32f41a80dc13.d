@@ -1,0 +1,11 @@
+/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/deps/libembassy_futures-5a8b32f41a80dc13.rmeta: /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/lib.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/fmt.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/block_on.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/yield_now.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/join.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/select.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/../README.md
+
+/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/deps/embassy_futures-5a8b32f41a80dc13.d: /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/lib.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/fmt.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/block_on.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/yield_now.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/join.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/select.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/../README.md
+
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/lib.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/fmt.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/block_on.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/yield_now.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/join.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/select.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/embassy-futures-0.1.1/src/../README.md:

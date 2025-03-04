@@ -1,0 +1,3 @@
+cargo:rustc-link-search=/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/build/esp32-cbfe8b324f7b17b5/out
+cargo:rerun-if-changed=device.x
+cargo:rerun-if-changed=build.rs

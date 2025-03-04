@@ -1,0 +1,10 @@
+/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/deps/libesp_hal_procmacros-ab3cd4ca86ad7539.so: /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/lib.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/blocking_main.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/builder.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/embassy.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/interrupt.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/ram.rs
+
+/home/luque/prog/rust/projects/rustlibesp32/v2cydlib/target/debug/deps/esp_hal_procmacros-ab3cd4ca86ad7539.d: /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/lib.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/blocking_main.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/builder.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/embassy.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/interrupt.rs /home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/ram.rs
+
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/lib.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/blocking_main.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/builder.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/embassy.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/interrupt.rs:
+/home/luque/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/esp-hal-procmacros-0.16.0/src/ram.rs:
