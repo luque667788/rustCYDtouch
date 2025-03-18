@@ -27,6 +27,7 @@ I've tried to keep this library as platform-independent as possible with my leve
 ## Example
 
 The repository includes an Embassy async example demonstrating how to use the library with async Rust.
+Remember to install the necessary libraries and dependencies to set up the ESP Rust development environment. For more information, refer to the [installation guide](https://docs.esp-rs.org/book/installation/riscv-and-xtensa.html). Also, check the section about writing `no_std` applications since the example does not require the standard library.
 
 To run the example:
 
